@@ -288,7 +288,7 @@ local function revertAppearance(vehicle, wanted)
     applyAppearance(vehicle, wanted)
     if not appearanceMatches(vehicle, wanted) then applyAppearance(vehicle, wanted) end
     if Config.debug and not appearanceMatches(vehicle, wanted) then
-        print('kora_customs: could not restore the original paint / window tint')
+        Kora.logging.warn('preview.appearance_restore_failed', 'Could not restore the original paint / window tint')
     end
 end
 
@@ -342,7 +342,7 @@ local function recheckRevert(session, attempt)
         local current = Kora.vehicle.getProperties(vehicle)
         local patch = Customs.previewDrift(current, session.original, session.touched)
         if next(patch) == nil then return end
-        if Config.debug then Kora.print.debug('kora_customs: a preview stayed on the vehicle after the revert; putting it back') end
+        if Config.debug then Kora.logging.debug('preview.revert_stuck', 'A preview stayed on the vehicle after the revert; putting it back') end
         applyPatch(vehicle, patch)
         recheckRevert(session, attempt + 1)
     end)
@@ -358,7 +358,7 @@ local function putBackUnpaid(vehicle, plate)
     if guardSettings().reapplyOnOpen == false then return end
     local patch = Customs.stuckPreviews(Kora.vehicle.getProperties(vehicle), entry)
     if next(patch) == nil then return end
-    if Config.debug then Kora.print.debug('kora_customs: unpaid previews were still on the vehicle; put back') end
+    if Config.debug then Kora.logging.debug('preview.unpaid_put_back', 'Unpaid previews were still on the vehicle; put back') end
     applyPatch(vehicle, patch)
 end
 
@@ -1140,7 +1140,7 @@ local function open(shopId)
     if type(Config.factoryLook) == 'table' and Config.factoryLook.enabled == true then
         CreateThread(function()
             local taken, result = Kora.callback.trigger('kora_customs:factoryLook', shopId, netId, original)
-            if Config.debug and not taken then Kora.print.debug(('factory look not stored: %s'):format(tostring(result))) end
+            if Config.debug and not taken then Kora.logging.debug('factory_look.not_stored', 'Factory look not stored', { reason = tostring(result) }) end
         end)
     end
 
@@ -1177,7 +1177,7 @@ local function open(shopId)
         stopPartCamera()
         if not ok then
             closeShell()
-            Kora.print.error(('kora_customs session failed: %s'):format(tostring(err)))
+            Kora.logging.error('session.failed', 'Customs session failed', { error = tostring(err) })
         end
     end)
 
@@ -1281,7 +1281,7 @@ local function repairVehicle(shopId)
             notify(Kora.lang('text.repair_success', dollars(result.price)), 'success')
         end)
         repairing = false
-        if not ok then Kora.print.error(('kora_customs repair failed: %s'):format(tostring(err))) end
+        if not ok then Kora.logging.error('repair.failed', 'Vehicle repair failed', { error = tostring(err) }) end
     end)
 end
 
@@ -1373,9 +1373,17 @@ if Config.debug then
     RegisterCommand('getVehprop', function()
         local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
         if not vehicle or vehicle == 0 then
-            Kora.print.debug('kora_customs: no vehicle found')
+            Kora.logging.debug('debug.no_vehicle', 'No vehicle found')
             return
         end
-        Kora.print.debug(Kora.vehicle.getProperties(vehicle))
+        if Kora.logging.isEnabled('debug') then
+            local properties = Kora.vehicle.getProperties(vehicle)
+            -- The plate is a vehicle identifier: keep it out of the log record.
+            local fields = {}
+            for key, value in pairs(properties) do
+                if key ~= 'plate' then fields[key] = value end
+            end
+            Kora.logging.debug('debug.vehicle_properties', 'Vehicle properties', fields)
+        end
     end)
 end

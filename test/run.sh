@@ -8,3 +8,4 @@ lua test/pauseconfig.lua
 lua test/previewguard.lua
 lua test/server.lua
 lua test/selfrepair.lua
+lua test/logging.lua
